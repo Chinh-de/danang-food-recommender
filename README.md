@@ -4,6 +4,68 @@ Trang khám phá quán ăn Đà Nẵng chạy mô hình gợi ý đã huấn luy
 
 Thiết kế: [docs/thiet-ke.md](docs/thiet-ke.md) · Kế hoạch: [docs/ke-hoach.md](docs/ke-hoach.md) · Hệ thiết kế giao diện: [docs/he-thiet-ke.md](docs/he-thiet-ke.md)
 
+## Chức năng
+
+### Người dùng
+
+**Chọn hoặc tạo người dùng.** Không cần mật khẩu. Chọn một trong 2.696 người dùng thật của Foody Đà Nẵng, hoặc tạo người dùng mới kèm sở thích (danh mục, mức giá, quận). Có thể bỏ qua phần sở thích.
+
+| Chọn người dùng có sẵn | Tạo người dùng mới |
+|---|---|
+| ![Chọn người dùng](docs/anh/demo_02_chon_nguoi_dung.png) | ![Tạo người dùng mới](docs/anh/demo_06_tao_nguoi_dung.png) |
+
+**Trang chủ** gồm các mục:
+- **Gợi ý cho bạn:** 20 quán người dùng chưa đến, do GNN dị thể và tầng xếp hạng lại LightGBM chọn.
+- **Ghé lại quán quen:** quán đã chấm từ 7 điểm trở lên.
+- **Quán mới:** quán admin vừa thêm.
+- **Duyệt theo quận và danh mục.**
+
+Chưa chọn người dùng thì trang chủ chỉ có lời mời chọn người dùng và phần duyệt quán.
+
+| Chưa chọn người dùng | Gợi ý cá nhân hóa |
+|---|---|
+| ![Trang chủ chưa chọn người dùng](docs/anh/demo_01_trang_chu_chua_chon.png) | ![Gợi ý cá nhân hóa](docs/anh/demo_03_goi_y_ca_nhan.png) |
+
+**Người dùng mới (khởi đầu lạnh).** Khi chưa có đánh giá nào, gợi ý dựa trên độ phổ biến và sở thích đã chọn. Ở ảnh dưới, người dùng chọn Café/Dessert, Món Hàn và Quận Hải Châu. Ngay sau đánh giá đầu tiên, người dùng được đưa vào đồ thị và nhận gợi ý từ mô hình chính.
+
+![Gợi ý cho người dùng mới](docs/anh/demo_07_goi_y_nguoi_moi.png)
+
+**Tìm kiếm:**
+- Tìm theo tên hoặc địa chỉ, gõ không dấu vẫn được.
+- Lọc theo quận, danh mục, mức giá, đang mở cửa.
+- Sắp xếp theo mức phù hợp với người đang chọn, điểm hoặc số đánh giá.
+
+**Chi tiết quán:**
+- Ảnh, giờ mở cửa, khoảng giá, 5 điểm khía cạnh, bản đồ OpenStreetMap, danh sách đánh giá.
+- Mục "Quán tương tự", tính theo embedding GNN.
+- Form viết đánh giá (1–10 điểm). Gửi xong, gợi ý của người dùng cập nhật ngay (khoảng 0,25 giây), không huấn luyện lại.
+
+| Tìm kiếm và lọc | Chi tiết quán, viết đánh giá |
+|---|---|
+| ![Tìm kiếm](docs/anh/demo_05_tim_kiem.png) | ![Chi tiết quán](docs/anh/demo_04_chi_tiet_quan.png) |
+
+Giao diện dùng được trên điện thoại:
+
+<img src="docs/anh/demo_14_dien_thoai.png" alt="Giao diện điện thoại" width="280">
+
+### Admin (`/admin`)
+
+- **Tổng quan:** số người dùng, quán, đánh giá; số phát sinh trên FoodGo; số người dùng và quán đang ở trạng thái lạnh; thời gian cập nhật mô hình.
+- **Quản lý quán:** thêm, sửa, ẩn quán. Quán mới chưa có đánh giá vẫn được gợi ý ngay, vì nó được nối với các nút danh mục, mức giá, quận và đối tượng khách trong đồ thị.
+- **Kiểm tra gợi ý:** với một người dùng, xem nhánh xử lý (mô hình chính hay mô hình đơn giản), điểm GNN, điểm tầng 2 và giá trị 14 tiêu chí của từng quán được gợi ý.
+
+| Tổng quan | Thêm quán |
+|---|---|
+| ![Admin tổng quan](docs/anh/demo_13_admin_tong_quan.png) | ![Thêm quán](docs/anh/demo_11_them_quan.png) |
+
+| Quán mới xuất hiện trên trang chủ | Kiểm tra gợi ý (mô hình chính) |
+|---|---|
+| ![Quán mới](docs/anh/demo_12_quan_moi.png) | ![Kiểm tra gợi ý](docs/anh/demo_10_kiem_tra_mo_hinh_chinh.png) |
+
+| Người dùng mới chưa có đánh giá | Sau đánh giá đầu tiên |
+|---|---|
+| ![Người dùng mới](docs/anh/demo_08_kiem_tra_nguoi_moi.png) | ![Sau đánh giá đầu tiên](docs/anh/demo_09_kiem_tra_sau_danh_gia.png) |
+
 ## Yêu cầu
 
 - [uv](https://docs.astral.sh/uv/) (backend, Python 3.12 do uv tự cài)
@@ -11,17 +73,18 @@ Thiết kế: [docs/thiet-ke.md](docs/thiet-ke.md) · Kế hoạch: [docs/ke-hoa
 
 ## Chuẩn bị (một lần)
 
-```bash
-cd foodgo/backend
-uv sync
-# copy file mô hình từ notebooks/ket_qua_chay và xuất tham số GNN sang .npz (cần torch, chỉ dùng ở bước này)
-uv run --with torch --extra-index-url https://download.pytorch.org/whl/cpu scripts/export_model.py
-# tạo data/foodgo.db từ data/foody_processed và file crawl trong foody/
-uv run scripts/prepare_data.py
+* [ ] 
+  ```bash
+  cd foodgo/backend
+  uv sync
+  # copy file mô hình từ notebooks/ket_qua_chay và xuất tham số GNN sang .npz (cần torch, chỉ dùng ở bước này)
+  uv run --with torch --extra-index-url https://download.pytorch.org/whl/cpu scripts/export_model.py
+  # tạo data/foodgo.db từ data/foody_processed và file crawl trong foody/
+  uv run scripts/prepare_data.py
 
-cd ../frontend
-npm install
-```
+  cd ../frontend
+  npm install
+  ```
 
 ## Chạy
 
