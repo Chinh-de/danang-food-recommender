@@ -11,9 +11,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app import config
 
 config.ARTIFACTS.mkdir(parents=True, exist_ok=True)
-for f in ["ranker.txt", "train_meta.json", "user_emb.npy", "item_emb.npy"]:
+for f in ["ranker.txt", "train_meta.json", "user_emb.npy", "item_emb.npy", "results.csv"]:
     shutil.copy2(config.SRC_MODEL / f, config.ARTIFACTS / f)
 sd = torch.load(config.SRC_MODEL / "gnn_di_the.pt", map_location="cpu")
 emb = sd["emb.weight"].numpy().astype(np.float32)
 np.savez(config.ARTIFACTS / "gnn.npz", emb=emb, rel_logit=sd["rel_logit"].numpy())
 print("emb", emb.shape, "| các khóa:", list(sd))
+
+# Các biến thể để so sánh (trang "So sánh mô hình"); gcn.pt chỉ có sau khi chạy lại notebook với ô lưu GCN.
+for src, dst in [("gnn_nhi_phan.pt", "gnn_nhi_phan.npz"), ("gnn_theo_diem.pt", "gnn_theo_diem.npz"), ("gcn.pt", "gcn.npz")]:
+    p = config.SRC_MODEL / src
+    if not p.exists():
+        print("bỏ qua (chưa có):", src)
+        continue
+    sd = {k: v.numpy() for k, v in torch.load(p, map_location="cpu").items()}
+    np.savez(config.ARTIFACTS / dst, **{k.replace(".", "_"): v for k, v in sd.items()})
+    print(dst, {k: v.shape for k, v in sd.items()})

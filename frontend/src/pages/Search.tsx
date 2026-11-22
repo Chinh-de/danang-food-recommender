@@ -5,6 +5,8 @@ import { api } from "@/lib/api"
 import { fmtInt } from "@/lib/format"
 import type { Meta, Page, PlaceCard } from "@/lib/types"
 import { useCurrentUser } from "@/lib/user-context"
+import { useTrace } from "@/lib/trace-context"
+import { ModelPicker, modelLabel } from "@/components/trace/ModelPicker"
 import { EmptyState, ErrorNote, Pagination, PlaceGrid } from "@/components/common"
 import { NativeSelect } from "@/components/ChipSelect"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -12,7 +14,7 @@ import { Button } from "@/components/ui/button"
 
 export default function Search() {
   const [sp, setSp] = useSearchParams()
-  const { userId } = useCurrentUser()
+  const { userId, user } = useCurrentUser()
   const { data: meta } = useQuery({ queryKey: ["meta"], queryFn: () => api.get<Meta>("/api/meta") })
   const f = {
     q: sp.get("q") ?? "", district: sp.get("district") ?? "", category: sp.get("category") ?? "",
@@ -29,11 +31,12 @@ export default function Search() {
     setSp(n)
   }
   const sort = userId === null && f.sort === "personal" ? "rating" : f.sort
+  const { model, models } = useTrace()
   const { data, isLoading, error } = useQuery({
-    queryKey: ["places", f, sort, userId],
+    queryKey: ["places", f, sort, userId, sort === "personal" ? model : ""],
     queryFn: () => api.get<Page<PlaceCard>>("/api/places", {
       q: f.q, district: f.district, category: f.category, price: f.price, open_now: f.open_now,
-      sort, user_id: userId ?? undefined, page: f.page, page_size: 24,
+      sort, user_id: userId ?? undefined, page: f.page, page_size: 24, model: sort === "personal" ? model : undefined,
     }),
     placeholderData: (prev) => prev,
   })
@@ -46,7 +49,9 @@ export default function Search() {
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-8">
       <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{f.q ? `Kết quả cho “${f.q}”` : "Khám phá quán ăn"}</h1>
-      <p className="mt-1 text-sm text-muted-foreground tabular-nums">{data ? `${fmtInt(data.total)} quán` : " "}</p>
+      <p className="mt-1 text-sm text-muted-foreground tabular-nums">
+        {data ? `${fmtInt(data.total)} quán${f.q ? ` có “${f.q}” trong tên` : ""}${sort === "personal" && user ? `, xếp theo mức phù hợp với ${user.name}${model !== "full" ? ` (mô hình ${modelLabel(models, model)})` : ""}` : ""}` : " "}
+      </p>
 
       <div className="sticky top-16 z-30 -mx-4 mt-4 flex flex-wrap items-center gap-2 border-b bg-background/95 px-4 py-3 backdrop-blur">
         <NativeSelect label="Quận" value={f.district} onChange={(v) => set({ district: v })} placeholder="Tất cả quận"
@@ -61,6 +66,7 @@ export default function Search() {
         <div className="ml-auto flex items-center gap-2">
           <span className="hidden text-sm text-muted-foreground sm:inline">Sắp xếp</span>
           <NativeSelect label="Sắp xếp" value={sort} onChange={(v) => set({ sort: v })} options={sortOptions} />
+          {sort === "personal" && <ModelPicker />}
         </div>
         {active && (
           <Button variant="ghost" size="lg" className="h-10" onClick={() => setSp(new URLSearchParams(sort !== "rating" ? { sort } : {}))}>
@@ -74,7 +80,7 @@ export default function Search() {
           <EmptyState title="Không tìm thấy quán phù hợp">Thử bỏ bớt bộ lọc hoặc tìm bằng từ khóa khác.</EmptyState>
         ) : (
           <>
-            <PlaceGrid places={data?.items} loading={isLoading} count={15} />
+            <PlaceGrid places={data?.items} loading={isLoading} count={15} why={f.q || true} />
             {data && <Pagination page={f.page} total={data.total} pageSize={data.page_size} onChange={(p) => { set({ page: String(p) }); window.scrollTo({ top: 0 }) }} />}
           </>
         )}

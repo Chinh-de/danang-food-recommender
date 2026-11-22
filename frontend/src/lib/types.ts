@@ -56,7 +56,7 @@ export type Page<T> = { items: T[]; total: number; page: number; page_size: numb
 
 export type Branch = "mo_hinh_chinh" | "nguoi_dung_moi_co_lich_su" | "nguoi_dung_moi_chua_co_lich_su"
 
-export type Recs = { branch: Branch; items: PlaceCard[] }
+export type Recs = { branch: Branch; model?: string; items: PlaceCard[] }
 
 export type Facet = { name: string; count: number }
 

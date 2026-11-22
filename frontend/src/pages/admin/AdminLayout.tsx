@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom"
-import { ArrowLeft, Gauge, Microscope, Store } from "lucide-react"
+import { ArrowLeft, Gauge, Microscope, Scale, Store } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Logo } from "@/components/AppHeader"
 
@@ -7,6 +7,7 @@ const LINKS = [
   { to: "/admin", label: "Tổng quan", icon: Gauge, end: true },
   { to: "/admin/quan", label: "Quản lý quán", icon: Store },
   { to: "/admin/kiem-tra", label: "Kiểm tra gợi ý", icon: Microscope },
+  { to: "/admin/so-sanh", label: "So sánh mô hình", icon: Scale },
 ]
 
 export default function AdminLayout() {

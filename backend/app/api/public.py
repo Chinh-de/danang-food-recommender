@@ -39,7 +39,7 @@ def create_user(body: schemas.UserIn, engine=Depends(get_engine)):
 # ---------- quán ----------
 @router.get("/places")
 def list_places(q: str = "", district: str | None = None, category: str | None = None, price: int | None = None,
-                open_now: bool = False, sort: str = "rating", user_id: int | None = None,
+                open_now: bool = False, sort: str = "rating", user_id: int | None = None, model: str = "full",
                 page: int = Query(1, ge=1), page_size: int = Query(24, ge=1, le=100), engine=Depends(get_engine)):
     P = engine.state.places
     m = P["is_hidden"].to_numpy() == 0
@@ -56,11 +56,16 @@ def list_places(q: str = "", district: str | None = None, category: str | None =
     if open_now:
         m &= P["opening"].map(lambda v: schemas.is_open_now(schemas.opening_list(v)) is True).to_numpy()
     ids = np.where(m)[0]
-    ps = engine.personal_scores(user_id) if (sort == "personal" and user_id is not None
-                                             and 0 <= user_id < len(engine.state.users)) else None
-    if ps is not None:
-        key = -ps[ids]
-    elif sort == "reviews":
+    if sort == "personal" and user_id is not None and 0 <= user_id < len(engine.state.users):
+        W = _model_world(engine, user_id, model)
+        if W is None:
+            ids, _ = engine.search_order(user_id, ids)
+        else:                                   # xếp các quán khớp theo điểm của mô hình đang chọn
+            s = W.scores(model, [user_id])[0][ids]
+            ids = ids[np.argsort(-s, kind="stable")]
+        sel = ids[(page - 1) * page_size: page * page_size]
+        return schemas.page(cards(engine, sel, user_id), len(ids), page, page_size)
+    if sort == "reviews":
         key = -P["review_count"].to_numpy(float)[ids]
     else:
         key = -np.nan_to_num(P["stars"].to_numpy(float)[ids]) - 1e-4 * np.log1p(P["review_count"].to_numpy(float)[ids])
@@ -101,15 +106,39 @@ def create_review(body: schemas.ReviewIn, engine=Depends(get_engine)):
         c.close()
 
 
-def recs(engine, user_id: int, k: int) -> dict:
+def _model_world(engine, user_id: int, model: str):
+    """World của trang so sánh nếu mô hình xem được cho người dùng này; mô hình chính trả None."""
+    if model == "full":
+        return None
+    from ..recsys.compare import get_comparer
+    from ..recsys.trace_models import model_list
+    if not any(m["key"] == model and m["available"] for m in model_list(engine, user_id)):
+        raise HTTPException(400, f"Mô hình {model} không dùng được cho người dùng này")
+    return get_comparer(engine).now_world()
+
+
+def recs(engine, user_id: int, k: int, model: str = "full") -> dict:
+    """Danh sách gợi ý. model = "full": mô hình chính (engine); khóa khác: top-K của mô hình so sánh đó."""
     user_row(engine, user_id)
-    r = engine.recommend(user_id, k)
-    return dict(branch=r.branch, items=cards(engine, [x.place_id for x in r.items], user_id))
+    W = _model_world(engine, user_id, model)
+    if W is None:
+        r = engine.recommend(user_id, k)
+        return dict(branch=r.branch, model=model, items=cards(engine, [x.place_id for x in r.items], user_id))
+    ids = [int(x) for x in W.topk(model, [user_id], k)[0] if x >= 0]
+    return dict(branch=engine.branch(user_id), model=model, items=cards(engine, ids, user_id))
 
 
 @router.get("/recommendations")
-def recommendations(user_id: int, k: int = Query(20, ge=1, le=100), engine=Depends(get_engine)):
-    return recs(engine, user_id, k)
+def recommendations(user_id: int, k: int = Query(20, ge=1, le=100), model: str = "full", engine=Depends(get_engine)):
+    return recs(engine, user_id, k, model)
+
+
+@router.get("/models")
+def models(user_id: int, engine=Depends(get_engine)):
+    """Các mô hình gợi ý chọn được cho người dùng (mô hình cần lịch sử bị khóa với người dùng chưa có đánh giá)."""
+    from ..recsys.trace_models import model_list
+    user_row(engine, user_id)
+    return model_list(engine, user_id)
 
 
 @router.get("/home")
@@ -130,3 +159,15 @@ def meta(engine=Depends(get_engine)):
     cat = engine.state.cat
     return dict(districts=cat.districts, categories=cat.cat_vocab, audiences=cat.audiences,
                 prices=[dict(value=k, label=v) for k, v in config.PRICE_LABELS.items()])
+
+
+# ---------- trực quan hóa từng bước ----------
+@router.get("/trace")
+def trace(user_id: int, place_id: int, q: str | None = None, model: str = "full", engine=Depends(get_engine)):
+    from ..recsys import trace as tr
+    user_row(engine, user_id)
+    place_row(engine, place_id)
+    try:
+        return tr.build(engine, user_id, place_id, q, model)
+    except ValueError as e:
+        raise HTTPException(400, str(e))

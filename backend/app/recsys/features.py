@@ -102,9 +102,15 @@ def top_candidates(P, Eu, Ei, users, n_cand, allow=None):
 
 def candidates(P, Eu, Ei, users, cat, n_cand=config.N_CAND, allow=None) -> dict:
     """stage của notebook: 200 ứng viên tầng 1 và 14 tiêu chí."""
-    I = cat.n_items
     users = np.asarray(users)
     cand, score = top_candidates(P, Eu, Ei, users, n_cand, allow)
+    return features_for(P, Eu, Ei, users, cat, cand, score)
+
+
+def features_for(P, Eu, Ei, users, cat, cand, score) -> dict:
+    """14 tiêu chí cho danh sách ứng viên cho trước (cand, score: [n_users, n]); z-score tính trong từng dòng."""
+    I = cat.n_items
+    users = np.asarray(users)
     keep = np.isfinite(score)
     t_u = P["t_ref"][users][:, None].astype(np.int64)
     cov = np.zeros(cand.shape)

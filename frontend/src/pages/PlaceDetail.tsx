@@ -10,6 +10,7 @@ import { ErrorNote, Pagination, PlaceGrid, RatingBadge, SafeImage, SectionHeader
 import { PlaceMap } from "@/components/PlaceMap"
 import { ReviewForm, ReviewItem } from "@/components/Reviews"
 import { Skeleton } from "@/components/ui/skeleton"
+import { WhyButton } from "@/components/trace/WhyButton"
 
 function Info({ icon: Icon, children }: { icon: typeof MapPin; children: React.ReactNode }) {
   return <li className="flex gap-2.5 text-sm"><Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden /><span>{children}</span></li>
@@ -55,6 +56,7 @@ export default function PlaceDetail() {
             <span className="text-sm text-muted-foreground tabular-nums">{fmtInt(p.review_count)} đánh giá</span>
             {p.my_rating !== null && <span className="text-sm font-medium text-brand">Bạn đã chấm {fmtScore(p.my_rating)}</span>}
           </div>
+          <WhyButton placeId={p.id} variant="detail" className="mt-3" />
           <ul className="mt-5 space-y-2.5">
             {p.address && <Info icon={MapPin}>{p.address}</Info>}
             <Info icon={Clock}>

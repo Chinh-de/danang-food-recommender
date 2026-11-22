@@ -62,3 +62,32 @@ def explain(user_id: int, k: int = Query(20, ge=1, le=100), engine=Depends(get_e
              for n, (b, x) in enumerate(zip(base, r.items))]
     return dict(user=schemas.user_out(u), branch=r.branch, history_count=int(engine.state.P["hist_len"][user_id]),
                 items=items)
+
+
+# ---------- so sánh mô hình ----------
+def comparer(engine):
+    from ..recsys.compare import get_comparer
+    return get_comparer(engine)
+
+
+@router.get("/compare/models")
+def compare_models(engine=Depends(get_engine)):
+    return comparer(engine).models()
+
+
+@router.get("/compare")
+def compare(user_id: int, mode: str = Query("now", pattern="^(now|holdout)$"), k: int = Query(10, ge=5, le=20),
+            models: str = "", engine=Depends(get_engine)):
+    u = user_row(engine, user_id)
+    d = comparer(engine).compare(user_id, mode, k, [m for m in models.split(",") if m])
+    ids = {i for c in d.get("columns", []) for i in c["items"]} | set(d.get("targets", []))
+    P = engine.state.places
+    d["places"] = {int(i): schemas.place_card(P.iloc[int(i)]) | dict(lat=float(P.iloc[int(i)]["lat"]), lon=float(P.iloc[int(i)]["lon"]))
+                   for i in ids}
+    d["user"] = schemas.user_out(u)
+    return d
+
+
+@router.get("/compare/summary")
+def compare_summary(engine=Depends(get_engine)):
+    return comparer(engine).summary()
