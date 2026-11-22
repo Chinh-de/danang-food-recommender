@@ -6,6 +6,7 @@ import { fmtInt, fmtScore, ratingTone } from "@/lib/format"
 import type { PlaceCard as PlaceCardT, User } from "@/lib/types"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
+import { WhyButton } from "@/components/trace/WhyButton"
 
 export function SafeImage({ src, alt, className }: { src: string | null | undefined; alt: string; className?: string }) {
   const [failed, setFailed] = useState(false)
@@ -44,10 +45,12 @@ export function UserAvatar({ user, size = 36 }: { user: Pick<User, "name" | "ava
   )
 }
 
-export function PlaceCard({ place }: { place: PlaceCardT }) {
+/** why: hiện nút "Vì sao gợi ý?" (true, hoặc chuỗi từ khóa khi mở từ trang tìm kiếm). */
+export function PlaceCard({ place, why }: { place: PlaceCardT; why?: boolean | string }) {
   return (
+    <div className="relative">
     <Link to={`/quan/${place.id}`}
-      className="group flex flex-col overflow-hidden rounded-lg border bg-card transition-[border-color,box-shadow] duration-200 hover:border-foreground/25 hover:shadow-sm focus-visible:ring-3 focus-visible:ring-ring/50 outline-none">
+      className="group flex h-full flex-col overflow-hidden rounded-lg border bg-card transition-[border-color,box-shadow] duration-200 hover:border-foreground/25 hover:shadow-sm focus-visible:ring-3 focus-visible:ring-ring/50 outline-none">
       <div className="relative aspect-[4/3] overflow-hidden bg-surface">
         <SafeImage src={place.image_url} alt={place.name} className="size-full transition-transform duration-300 group-hover:scale-[1.03]" />
         {place.stars !== null && <RatingBadge value={place.stars} className="absolute top-2 right-2 shadow-sm" />}
@@ -69,10 +72,12 @@ export function PlaceCard({ place }: { place: PlaceCardT }) {
         </div>
       </div>
     </Link>
+    {why && <WhyButton placeId={place.id} q={typeof why === "string" ? why : undefined} className="absolute top-2 left-2" />}
+    </div>
   )
 }
 
-export function PlaceGrid({ places, loading, count = 10, className }: { places?: PlaceCardT[]; loading?: boolean; count?: number; className?: string }) {
+export function PlaceGrid({ places, loading, count = 10, className, why }: { places?: PlaceCardT[]; loading?: boolean; count?: number; className?: string; why?: boolean | string }) {
   const cls = cn("grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5", className)
   if (loading) {
     return (
@@ -86,13 +91,13 @@ export function PlaceGrid({ places, loading, count = 10, className }: { places?:
       </div>
     )
   }
-  return <div className={cls}>{places?.map((p) => <PlaceCard key={p.id} place={p} />)}</div>
+  return <div className={cls}>{places?.map((p) => <PlaceCard key={p.id} place={p} why={why} />)}</div>
 }
 
 export function SectionHeader({ title, subtitle, action }: { title: string; subtitle?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="mb-4 flex items-end justify-between gap-4">
-      <div>
+    <div className="mb-4 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+      <div className="min-w-0 flex-1 basis-72">
         <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">{title}</h2>
         {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
       </div>

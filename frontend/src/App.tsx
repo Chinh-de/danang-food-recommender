@@ -2,6 +2,7 @@ import { useEffect } from "react"
 import { BrowserRouter, Outlet, Route, Routes, useLocation } from "react-router-dom"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { UserProvider } from "@/lib/user-context"
+import { TraceProvider } from "@/lib/trace-context"
 import { AppHeader } from "@/components/AppHeader"
 import { Toaster } from "@/components/ui/sonner"
 import { EmptyState } from "@/components/common"
@@ -16,6 +17,7 @@ import Dashboard from "@/pages/admin/Dashboard"
 import Places from "@/pages/admin/Places"
 import PlaceForm from "@/pages/admin/PlaceForm"
 import Explain from "@/pages/admin/Explain"
+import Compare from "@/pages/admin/Compare"
 
 const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false } } })
 
@@ -43,6 +45,7 @@ export default function App() {
   return (
     <QueryClientProvider client={qc}>
       <UserProvider>
+        <TraceProvider>
         <BrowserRouter>
           <ScrollToTop />
           <Routes>
@@ -61,9 +64,11 @@ export default function App() {
               <Route path="quan/moi" element={<PlaceForm />} />
               <Route path="quan/:id" element={<PlaceForm />} />
               <Route path="kiem-tra" element={<Explain />} />
+              <Route path="so-sanh" element={<Compare />} />
             </Route>
           </Routes>
         </BrowserRouter>
+        </TraceProvider>
         <Toaster position="top-center" richColors />
       </UserProvider>
     </QueryClientProvider>

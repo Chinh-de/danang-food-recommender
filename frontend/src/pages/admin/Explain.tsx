@@ -17,7 +17,7 @@ const GROUPS: { name: string; tone: string; cols: [string, string][] }[] = [
 
 const num = (v: number | null | undefined, d = 3) => (v === null || v === undefined ? "-" : v.toFixed(d))
 
-function UserPicker({ value, onPick }: { value: number | null; onPick: (id: number) => void }) {
+export function UserPicker({ value, onPick }: { value: number | null; onPick: (id: number) => void }) {
   const [q, setQ] = useState("")
   const { data } = useQuery({ queryKey: ["users", "picker", q], queryFn: () => api.get<Page<User>>("/api/users", { q, page_size: 8 }) })
   return (

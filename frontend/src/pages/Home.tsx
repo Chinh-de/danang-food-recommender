@@ -2,8 +2,10 @@ import { Link } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { MapPin, Sparkles, UserRound } from "lucide-react"
 import { api } from "@/lib/api"
-import type { Home as HomeT } from "@/lib/types"
+import type { Home as HomeT, Recs } from "@/lib/types"
 import { useCurrentUser } from "@/lib/user-context"
+import { useTrace } from "@/lib/trace-context"
+import { ModelPicker, modelLabel } from "@/components/trace/ModelPicker"
 import { ErrorNote, PlaceGrid, SectionHeader } from "@/components/common"
 import { buttonVariants } from "@/components/ui/button"
 
@@ -26,6 +28,15 @@ export default function Home() {
     queryKey: ["home", userId],
     queryFn: () => api.get<HomeT>("/api/home", { user_id: userId ?? undefined }),
   })
+  const { model, models } = useTrace()
+  // mô hình chính đã có trong /api/home; mô hình khác lấy top-20 của mô hình đó
+  const other = useQuery({
+    queryKey: ["recs", userId, model],
+    queryFn: () => api.get<Recs>("/api/recommendations", { user_id: userId!, k: 20, model }),
+    enabled: userId !== null && model !== "full",
+    placeholderData: (prev) => prev,
+  })
+  const recs = model === "full" ? data?.recommended : other.data
   const cold = data?.recommended?.branch === "nguoi_dung_moi_chua_co_lich_su"
   return (
     <div className="mx-auto max-w-[1200px] space-y-12 px-4 py-8">
@@ -44,8 +55,11 @@ export default function Home() {
       ) : (
         <section aria-labelledby="rec-title">
           <SectionHeader title={user ? `Gợi ý cho ${user.name}` : "Gợi ý cho bạn"}
-            subtitle={cold ? "Hãy đánh giá vài quán để nhận gợi ý sát hơn." : "Những quán bạn chưa đến, chọn theo khẩu vị và thói quen của bạn."} />
-          <PlaceGrid places={data?.recommended?.items} loading={isLoading} count={20} />
+            subtitle={model !== "full" ? `Đang gợi ý bằng mô hình ${modelLabel(models, model)} (so sánh). Chọn “Hai tầng” để dùng mô hình đề xuất.`
+              : cold ? "Hãy đánh giá vài quán để nhận gợi ý sát hơn." : "Những quán bạn chưa đến, chọn theo khẩu vị và thói quen của bạn."}
+            action={<ModelPicker />} />
+          {other.error && <ErrorNote error={other.error} />}
+          <PlaceGrid places={recs?.items} loading={isLoading || (model !== "full" && other.isLoading)} count={20} why />
         </section>
       )}
 

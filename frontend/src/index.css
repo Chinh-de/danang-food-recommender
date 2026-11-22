@@ -114,3 +114,8 @@
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 .leaflet-container { font-family: inherit; }
+
+/* Trực quan hóa từng bước: luồng chạy dọc cạnh về phía nút đang tính */
+@keyframes trace-dash { to { stroke-dashoffset: 24; } }
+.trace-flow { animation: trace-dash 0.9s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .trace-flow { animation: none; } }

@@ -28,10 +28,14 @@ def load_frames(conn, parts=None):
     return places, users, hist
 
 
-def embed(places, users, hist):
+def embed(places, users, hist, keep: bool = False):
+    """keep=True: trả thêm (g, layers) để engine giữ lại cho trực quan hóa từng bước."""
     cat = Catalog.from_places(places, config.META["I"])
     sizes = {k: cat.attrs[k].shape[1] for k in config.RELS[1:]}
     layout = Layout(config.META["U"], config.META["I"], sizes, len(users), len(places))
     g = build_graph(hist, cat, layout, "dynamic")
+    if keep:
+        Eu, Ei, layers = propagate(emb0(), g, config.META["rel_weights"], layout, return_layers=True)
+        return cat, layout, Eu, Ei, g, layers
     Eu, Ei = propagate(emb0(), g, config.META["rel_weights"], layout)
     return cat, layout, Eu, Ei

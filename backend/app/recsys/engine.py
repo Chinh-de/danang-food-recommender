@@ -11,7 +11,7 @@ import numpy as np
 
 from .. import clock, config, db
 from . import cold
-from .features import DAY, build_phase, candidates, rank
+from .features import DAY, build_phase, candidates, feature_matrix, features_for, rank
 from .loader import embed, load_frames
 
 MAIN, NEW_WITH, NEW_WITHOUT = "mo_hinh_chinh", "nguoi_dung_moi_co_lich_su", "nguoi_dung_moi_chua_co_lich_su"
@@ -44,6 +44,9 @@ class State:
     pop_recent: np.ndarray
     pop_all: np.ndarray
     now: int
+    layout: object = None
+    g: dict | None = None          # ma trận kề chuẩn hóa theo quan hệ
+    layers: list | None = None     # E⁽⁰⁾..E⁽³⁾ của mọi nút
 
 
 class Engine:
@@ -53,6 +56,7 @@ class Engine:
         self.lock = threading.Lock()
         self.last_reload_ms = 0.0
         self.state: State | None = None
+        self.comparer = None           # tạo khi trang so sánh mô hình cần (api/admin.py)
         self.reload()
 
     def conn(self):
@@ -67,12 +71,13 @@ class Engine:
             now = clock.now_ts(c)
         finally:
             c.close()
-        cat, _, Eu, Ei = embed(places, users, hist)
+        cat, layout, Eu, Ei, g, layers = embed(places, users, hist, keep=True)
         P = build_phase(hist, cat, len(users))
         i = hist["i"].to_numpy()
         recent = hist["ts"].to_numpy() > now - config.COLD_RECENT_DAYS * DAY   # chỉ dùng cho mô hình đơn giản
         self.state = State(places, users, hist, cat, Eu, Ei, P,
-                           np.bincount(i[recent], minlength=cat.n_items), np.bincount(i, minlength=cat.n_items), now)
+                           np.bincount(i[recent], minlength=cat.n_items), np.bincount(i, minlength=cat.n_items), now,
+                           layout, g, layers)
         dt = time.perf_counter() - t0
         self.last_reload_ms = dt * 1000
         return dt
@@ -116,6 +121,29 @@ class Engine:
             crit = {c: float(np.nan_to_num(D["raw"][c][0, p])) for c in CRITERIA} if explain else None
             items.append(RecItem(int(top[0, j]), float(sc[0, j]), float(D["raw"]["gnn"][0, p]), crit))
         return RecResult(br, items)
+
+    def search_order(self, user_id: int, ids: np.ndarray) -> tuple[np.ndarray, str]:
+        """Xếp các quán khớp tìm kiếm theo mức phù hợp với người dùng, cùng đường tính với "Gợi ý cho bạn".
+
+        Có vector: tầng 1 trên tập ids, 200 quán điểm cao nhất qua tầng 2 (LightGBM), phần còn lại theo tầng 1.
+        Quán đã đánh giá vẫn được xếp (tìm kiếm là người dùng chủ động tìm). Chưa có vector: mô hình đơn giản.
+        """
+        S, br = self.state, self.branch(user_id)
+        ids = np.asarray(ids, dtype=int)
+        if len(ids) == 0:
+            return ids, br
+        if br == NEW_WITHOUT:
+            row = self._user(user_id)
+            prefs = json.loads(row["prefs"]) if isinstance(row["prefs"], str) else None
+            s = cold.score(prefs, S.cat, S.pop_recent, S.pop_all)[ids]
+            return ids[np.argsort(-s, kind="stable")], br
+        g = (S.Eu[user_id] @ S.Ei[ids].T).astype(float)
+        by_gnn = ids[np.argsort(-g, kind="stable")]
+        head, tail = by_gnn[:config.N_CAND], by_gnn[config.N_CAND:]
+        gh = S.Eu[user_id] @ S.Ei[head].T
+        D = features_for(S.P, S.Eu, S.Ei, [user_id], S.cat, head[None, :], gh[None, :].astype(float))
+        s = self.booster.predict(feature_matrix(D)[0])
+        return np.concatenate([head[np.argsort(-s, kind="stable")], tail]), br
 
     def personal_scores(self, user_id: int) -> np.ndarray | None:
         if not self.has_vector(user_id):
