@@ -27,3 +27,18 @@ for src, dst in [("gnn_nhi_phan.pt", "gnn_nhi_phan.npz"), ("gnn_theo_diem.pt", "
     sd = {k: v.numpy() for k, v in torch.load(p, map_location="cpu").items()}
     np.savez(config.ARTIFACTS / dst, **{k.replace(".", "_"): v for k, v in sd.items()})
     print(dst, {k: v.shape for k, v in sd.items()})
+
+# GCN không được lưu ở lần chạy chính; gcn.pt lấy từ một lần chạy lại cùng mã và cấu hình (notebooks/foody_huan_luyen_chay_lai_gcn.ipynb).
+# Dòng GCN của results.csv lấy theo lần chạy lại đó để trang so sánh đối chiếu đúng tham số đang dùng.
+rerun = config.SRC_MODEL / "results_chay_lai_gcn.csv"
+if rerun.exists() and (config.ARTIFACTS / "gcn.npz").exists():
+    import csv
+    def rows(p):
+        with open(p, encoding="utf-8") as f:
+            return list(csv.reader(f))
+    main, again = rows(config.ARTIFACTS / "results.csv"), rows(rerun)
+    gcn = next(r for r in again if r[0] == "GCN")
+    main = [gcn if r[0] == "GCN" else r for r in main]
+    with open(config.ARTIFACTS / "results.csv", "w", encoding="utf-8", newline="") as f:
+        csv.writer(f).writerows(main)
+    print("results.csv: dòng GCN lấy từ lần chạy lại", rerun.name)

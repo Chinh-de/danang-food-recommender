@@ -31,7 +31,7 @@ Siêu tham số (k = 50 láng giềng cho User-kNN; Item-kNN dùng toàn bộ đ
 
 | # | Mô hình | Cơ chế thêm vào | Tham số | NDCG@20 trên test (notebook) |
 |---|---|---|---|---|
-| 2 | **GCN** (baseline) | Lọc cộng tác trên đồ thị người dùng–quán, cạnh nhị phân | **Chưa lưu**, cần chạy lại notebook | 0,0734 |
+| 2 | **GCN** (baseline) | Lọc cộng tác trên đồ thị người dùng–quán, cạnh nhị phân | `gcn.pt` từ lần chạy lại cùng mã (`notebooks/foody_huan_luyen_chay_lai_gcn.ipynb`) | 0,0734 (lần chạy chính); 0,0724 (lần chạy lại, tham số web dùng) |
 | 3 | **GNN dị thể, nhị phân** | Thêm nút thuộc tính (danh mục, giá, tiện ích, quận, đối tượng khách) | `gnn_nhi_phan.pt` (đã có) | 0,0955 |
 | 4 | **GNN dị thể, theo điểm** | Thêm mức hài lòng: w = r | `gnn_theo_diem.pt` (đã có) | 0,1066 |
 | 5 | **GNN dị thể, động** (tầng 1) | Thêm độ mới: w = r·(0,2 + 0,8·e^(−Δt/180)) | `gnn_di_the.pt` (đã có, đang dùng) | 0,0976 |
